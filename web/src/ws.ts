@@ -255,18 +255,24 @@ function extractProcessesFromBlocks(sessionId: string, blocks: ContentBlock[]) {
 
 /** Pending background Agent calls awaiting their tool_result */
 const pendingBackgroundAgents = new Map<string, Map<string, { name: string; description: string; agentType: string; startedAt: number }>>();
+/** Separate dedup set for background agents (shared processedToolUseIds is consumed by task extraction) */
+const processedAgentIds = new Map<string, Set<string>>();
 
 function extractBackgroundAgentsFromBlocks(sessionId: string, blocks: ContentBlock[]) {
   const store = useStore.getState();
-  const processed = getProcessedSet(sessionId);
+  let agentProcessed = processedAgentIds.get(sessionId);
+  if (!agentProcessed) {
+    agentProcessed = new Set();
+    processedAgentIds.set(sessionId, agentProcessed);
+  }
 
   for (const block of blocks) {
     // Phase 1: Detect Agent tool_use with run_in_background
     if (block.type === "tool_use" && block.name === "Agent") {
-      if (block.id && processed.has(block.id)) continue;
+      if (block.id && agentProcessed.has(block.id)) continue;
       const input = block.input as Record<string, unknown>;
       if (input.run_in_background === true) {
-        if (block.id) processed.add(block.id);
+        if (block.id) agentProcessed.add(block.id);
         let sessionPending = pendingBackgroundAgents.get(sessionId);
         if (!sessionPending) {
           sessionPending = new Map();
@@ -788,6 +794,7 @@ function handleParsedMessage(
       // Flush processed tool IDs at end of turn — deduplication only needed
       // within a single turn. Preserves memory in long-running sessions.
       processedToolUseIds.delete(sessionId);
+      processedAgentIds.delete(sessionId);
 
       const r = data.data;
       const sessionUpdates: Partial<{ total_cost_usd: number; num_turns: number; context_used_percent: number; total_lines_added: number; total_lines_removed: number }> = {
@@ -1313,6 +1320,7 @@ export function disconnectSession(sessionId: string) {
   }
   useStore.getState().setConnectionStatus(sessionId, "disconnected");
   processedToolUseIds.delete(sessionId);
+  processedAgentIds.delete(sessionId);
   pendingBackgroundBash.delete(sessionId);
   taskCounters.delete(sessionId);
   streamingPhaseBySession.delete(sessionId);
