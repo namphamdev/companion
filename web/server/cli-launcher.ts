@@ -13,7 +13,7 @@ import type { SessionStore } from "./session-store.js";
 import type { BackendType } from "./session-types.js";
 import type { RecorderManager } from "./recorder.js";
 import { CodexAdapter } from "./codex-adapter.js";
-import { resolveBinary, getEnrichedPath } from "./path-resolver.js";
+import { resolveBinary, getEnrichedPath, getBundledClaudeCli } from "./path-resolver.js";
 import { containerManager } from "./container-manager.js";
 import { companionBus } from "./event-bus.js";
 import {
@@ -467,7 +467,11 @@ export class CliLauncher {
 
     // For containerized sessions, the CLI binary lives inside the container.
     // For host sessions, resolve the binary on the host.
-    let binary = options.claudeBinary || "claude";
+    let binary = options.claudeBinary || process.env.COMPANION_CLAUDE_BINARY || getBundledClaudeCli() || "claude";
+    // Resolve relative paths (e.g. "web/bin/cli.js") to absolute before binary lookup
+    if (binary !== "claude" && binary !== "codex" && !binary.startsWith("/") && !(process.platform === "win32" && /^[a-zA-Z]:[/\\]/.test(binary))) {
+      binary = resolve(binary);
+    }
     if (!isContainerized) {
       const resolved = resolveBinary(binary);
       if (resolved) {
@@ -585,8 +589,12 @@ export class CliLauncher {
       // Host-based spawn (original behavior)
       // On Windows, .cmd/.bat files cannot be spawned directly by Bun.spawn;
       // they must be invoked via cmd.exe /c.
+      // .js files (e.g. bundled CLI) are spawned via bun.
       const isCmdScript = process.platform === "win32" && (binary.endsWith(".cmd") || binary.endsWith(".bat"));
-      spawnCmd = isCmdScript ? ["cmd.exe", "/c", binary, ...args] : [binary, ...args];
+      const isJsScript = binary.endsWith(".js") || binary.endsWith(".mjs");
+      spawnCmd = isJsScript
+        ? ["bun", binary, ...args]
+        : isCmdScript ? ["cmd.exe", "/c", binary, ...args] : [binary, ...args];
       spawnEnv = {
         ...process.env,
         CLAUDECODE: undefined,

@@ -184,3 +184,14 @@ export function resolveBinary(name: string): string | null {
 export function getServicePath(): string {
   return getEnrichedPath();
 }
+
+/**
+ * Check if a bundled Claude CLI JS file exists in the package's bin/ directory.
+ * Returns the absolute path to bin/cli.js if found, null otherwise.
+ */
+export function getBundledClaudeCli(): string | null {
+  const packageRoot = process.env.__COMPANION_PACKAGE_ROOT;
+  if (!packageRoot) return null;
+  const bundled = join(packageRoot, "bin", "claude.js");
+  return existsSync(bundled) ? bundled : null;
+}
