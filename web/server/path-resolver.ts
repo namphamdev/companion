@@ -154,8 +154,8 @@ export function resolveBinary(name: string): string | null {
   const sanitized = name.replace(/[^a-zA-Z0-9._@/-]/g, "");
   const enrichedPath = getEnrichedPath();
 
-  // Try `where` first on Windows (returns native Win32 paths), then `which` as fallback
-  const commands = process.platform === "win32" ? ["where", "which"] : ["which"];
+  // On Windows use `where`; on Unix use `which`
+  const commands = process.platform === "win32" ? ["where"] : ["which"];
   for (const cmd of commands) {
     try {
       const result = execSync(`${cmd} ${sanitized}`, {
