@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { getCookie, setCookie } from "hono/cookie";
 import { streamSSE } from "hono/streaming";
 import { execSync } from "node:child_process";
-import { resolveBinary } from "./path-resolver.js";
+import { resolveBinary, getBundledClaudeCli } from "./path-resolver.js";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
@@ -1177,7 +1177,7 @@ export function createRoutes(
   api.get("/backends", (c) => {
     const backends: Array<{ id: string; name: string; available: boolean }> = [];
 
-    backends.push({ id: "claude", name: "Claude Code", available: resolveBinary("claude") !== null });
+    backends.push({ id: "claude", name: "Claude Code", available: resolveBinary("claude") !== null || getBundledClaudeCli() !== null });
     backends.push({ id: "codex", name: "Codex", available: resolveBinary("codex") !== null });
 
     return c.json(backends);

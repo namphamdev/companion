@@ -38,6 +38,7 @@ COPY --from=builder /app/bin ./bin
 ENV NODE_ENV=production
 ENV PORT=3456
 ENV HOST=0.0.0.0
+ENV __COMPANION_PACKAGE_ROOT=/app
 
 EXPOSE 3456
 
